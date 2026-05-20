@@ -1,0 +1,39 @@
+{
+  "name": "Dark Mood",
+  "description": "Dark moody cinematic style",
+  "background": {
+    "mode": "gradient",
+    "color1": "#0d0d0d",
+    "color2": "#1a0a2e",
+    "gradient_direction": "radial"
+  },
+  "text": {
+    "text": "SI TE SABES EL TIKTOK BAILAI",
+    "font": "Anton",
+    "font_size": 72,
+    "color": "#e63946",
+    "glow": true,
+    "glow_color": "#e63946",
+    "shadow": true,
+    "stroke": true,
+    "stroke_width": 4
+  },
+  "effects": {
+    "snowfall": false,
+    "fuzzy_stars": false,
+    "glow_particles": true,
+    "soft_blur_glow": true,
+    "vhs_effect": true,
+    "grain": true,
+    "cinematic_blur": true,
+    "enhancement_4k": true
+  },
+  "audio": {
+    "speed": 1.18,
+    "background_music_volume": -20.8
+  },
+  "sticker": {
+    "enabled": true,
+    "position": "bottom-right"
+  }
+}
