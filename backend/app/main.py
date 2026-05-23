@@ -40,7 +40,7 @@ async def health():
     import shutil as sh
     return {
         "status": "healthy",
-        "ffmpeg": sh.which("ffmpeg") is not None,
+        "ffmpeg": __import__("shutil").which("ffmpeg") is not None,
         "python": sys.version,
     }
 
