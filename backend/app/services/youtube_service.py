@@ -44,6 +44,17 @@ class YouTubeService:
             await progress_callback("youtube", 10, "Starting YouTube download...")
 
         # Download audio using yt-dlp — FIXED: use android client to bypass bot detection
+        # Write cookies from environment variable if available
+        cookies_file = None
+        cookies_b64 = __import__("os").environ.get("YOUTUBE_COOKIES_B64", "")
+        if cookies_b64:
+            import base64, tempfile
+            cookies_data = base64.b64decode(cookies_b64).decode("utf-8")
+            tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+            tmp.write(cookies_data)
+            tmp.close()
+            cookies_file = tmp.name
+
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": os.path.join(output_dir, "raw_audio.%(ext)s"),
@@ -58,6 +69,7 @@ class YouTubeService:
             "writeinfojson": True,
             "quiet": True,
             "no_warnings": True,
+            "cookiefile": cookies_file,
             # Use android client — most reliable for server-side downloads
             "extractor_args": {
                 "youtube": {
