@@ -321,3 +321,14 @@ async def preview_colors():
         }
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+@app.get("/api/debug/cookies")
+async def debug_cookies():
+    import os
+    exists = os.path.exists('/tmp/yt_cookies.txt')
+    size = os.path.getsize('/tmp/yt_cookies.txt') if exists else 0
+    first_line = ""
+    if exists:
+        with open('/tmp/yt_cookies.txt') as f:
+            first_line = f.readline()
+    return {"exists": exists, "size": size, "first_line": first_line}
