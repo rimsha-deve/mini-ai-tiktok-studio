@@ -332,3 +332,17 @@ async def debug_cookies():
         with open('/tmp/yt_cookies.txt') as f:
             first_line = f.readline()
     return {"exists": exists, "size": size, "first_line": first_line}
+
+@app.on_event("startup")
+async def write_cookies():
+    import os, base64
+    cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
+    if cookies_b64:
+        try:
+            cookies_data = base64.b64decode(cookies_b64 + "==").decode("utf-8", errors="ignore")
+            with open("/tmp/yt_cookies.txt", "w") as f:
+                f.write("# Netscape HTTP Cookie File\n")
+                f.write(cookies_data)
+            print("[STARTUP] YouTube cookies written successfully!")
+        except Exception as e:
+            print(f"[STARTUP] Cookie write failed: {e}")
