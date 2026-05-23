@@ -223,7 +223,7 @@ def _encode_subscribe_break(main_video: str, break_start: float,
     _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     try:
         import video_engine as _ve
-        snow_frames = _ve.build_snowfall_cycle(30)
+        snow_frames = _ve.build_snowfall_cycle(300)  # FIX 1: was 30, now 300 for smooth seamless loop
     except Exception:
         snow_frames = None
 
@@ -445,7 +445,7 @@ def _build_outro_clip(audio_path: str, start: float,
         shutil.rmtree(frames_dir, ignore_errors=True)
         return False
 
-    # Merge slide + hold
+    # Merge slide + hold — FIX 2: removed bad -map flags that were dropping audio
     concat_f = os.path.join(TEMP_DIR, "outro_concat_tl.txt")
     with open(concat_f, "w", encoding="ascii") as f:
         f.write(f"file '{os.path.abspath(slide_out).replace(chr(92),'/')}'\n")
@@ -453,7 +453,6 @@ def _build_outro_clip(audio_path: str, start: float,
 
     r3 = _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0",
                "-i", os.path.abspath(concat_f),
-               "-map", "0:v", "-map", "0:a",
                "-c", "copy", output])
 
     shutil.rmtree(frames_dir, ignore_errors=True)
