@@ -3,7 +3,7 @@
     "buildCommand": "apt-get update && apt-get install -y ffmpeg && pip install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "startCommand": "python -c \"import os,base64; open('/tmp/yt_cookies.txt','w').write('# Netscape HTTP Cookie File\\n'+base64.b64decode(os.environ.get('YOUTUBE_COOKIES_B64','')+('='*4)).decode('utf-8','ignore'))\" && uvicorn app.main:app --host 0.0.0.0 --port 8000",
     "restartPolicyType": "ON_FAILURE"
   }
 }
