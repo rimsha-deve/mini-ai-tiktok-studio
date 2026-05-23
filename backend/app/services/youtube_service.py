@@ -53,7 +53,7 @@ class YouTubeService:
             tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
             tmp.write(cookies_data)
             tmp.close()
-            cookies_file = tmp.name
+            cookies_file = '/tmp/yt_cookies.txt'
 
         ydl_opts = {
             "format": "bestaudio/best",
