@@ -40,7 +40,7 @@ async def health():
     import shutil as sh
     return {
         "status": "healthy",
-        "ffmpeg": __import__("shutil").which("ffmpeg") is not None,
+        "ffmpeg": __import__("subprocess").run(["ffmpeg", "-version"], capture_output=True).returncode == 0,
         "python": sys.version,
     }
 
