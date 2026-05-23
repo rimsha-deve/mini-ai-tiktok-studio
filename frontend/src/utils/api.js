@@ -122,7 +122,9 @@ export function createGenerationSocket(config, callbacks) {
     };
 
     ws.onclose = (event) => {
-      if (hasConnected) {
+      // Only trigger close callback if we never got a complete/error
+      // Don't treat normal close after complete as an error
+      if (hasConnected && event.code !== 1000) {
         callbacks.onClose?.();
       }
     };
@@ -189,3 +191,11 @@ export async function cleanupTemp() {
 }
 
 export default api;
+
+
+// ==================== Color Preview ====================
+
+export async function getAvatarColors() {
+  const response = await api.get('/colors/preview');
+  return response.data;
+}

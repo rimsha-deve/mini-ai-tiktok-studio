@@ -49,7 +49,14 @@ async def health():
 
 @app.post("/api/upload/avatar")
 async def upload_avatar(file: UploadFile = File(...)):
-    ext  = os.path.splitext(file.filename)[1] or ".png"
+    # Delete ALL previous avatar uploads and processed cache first
+    for old_ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        for prefix in ["avatar_upload", "avatar_processed"]:
+            old_path = os.path.join(TEMP_DIR, f"{prefix}{old_ext}")
+            if os.path.exists(old_path):
+                os.remove(old_path)
+
+    ext  = os.path.splitext(file.filename)[1].lower() or ".png"
     path = os.path.join(TEMP_DIR, f"avatar_upload{ext}")
     with open(path, "wb") as f:
         f.write(await file.read())
@@ -72,6 +79,23 @@ async def upload_background(file: UploadFile = File(...)):
     with open(path, "wb") as f:
         f.write(await file.read())
     return {"success": True, "path": path}
+
+
+@app.post("/api/upload/logo")
+async def upload_logo(file: UploadFile = File(...)):
+    """Upload custom logo — replaces TikTok logo."""
+    ext  = os.path.splitext(file.filename)[1] or ".png"
+    # Save directly as tiktok_sticker.png to replace the default
+    stickers_dir = os.path.join(BASE_DIR, "assets", "stickers")
+    os.makedirs(stickers_dir, exist_ok=True)
+    path = os.path.join(stickers_dir, "tiktok_sticker.png")
+    # Convert to PNG with transparency
+    from PIL import Image as PILImage
+    import io
+    content = await file.read()
+    img = PILImage.open(io.BytesIO(content)).convert("RGBA")
+    img.save(path, "PNG")
+    return {"success": True, "path": path, "message": "Logo replaced successfully"}
 
 
 # ── Preset endpoints ────────────────────────────────────────────────────────
@@ -160,26 +184,71 @@ async def ws_generate(websocket: WebSocket):
         info     = await AudioService().get_audio_info(processed_audio)
         duration = info["duration"]
 
-        # ── 2. Find avatar ────────────────────────────────────────────────
+        # ── Beat analysis + dynamic processing ───────────────────────────
+        beat_enabled = data.get("audio", {}).get("beat_analysis", True)
+        if beat_enabled:
+            await progress("beat", 30, "Analyzing beats and normalizing audio...")
+            from app.services.beat_service import BeatService
+            beat_svc = BeatService()
+            beat_output = os.path.join(session_dir, "audio_beat.mp3")
+            try:
+                analysis = await beat_svc.process_with_beat_analysis(
+                    processed_audio, beat_output,
+                    progress_callback=progress,
+                )
+                if os.path.exists(beat_output) and os.path.getsize(beat_output) > 10000:
+                    processed_audio = beat_output
+                    summary = beat_svc.get_analysis_summary(analysis)
+                    await progress("beat", 45, f"Beat analysis done: {summary}")
+                else:
+                    await progress("beat", 45, "Beat processing skipped (fallback to original)")
+            except Exception as e:
+                await progress("beat", 45, f"Beat analysis skipped: {str(e)[:80]}")
+
+        # ── 2. Find avatar (pick most recently uploaded) ─────────────────
         avatar_path = data.get("avatar_path")
         if not avatar_path:
-            for ext in [".png",".jpg",".jpeg",".webp"]:
+            candidates = []
+            for ext in [".png", ".jpg", ".jpeg", ".webp"]:
                 p = os.path.join(TEMP_DIR, f"avatar_upload{ext}")
                 if os.path.exists(p):
-                    avatar_path = p
-                    break
+                    candidates.append((os.path.getmtime(p), p))
+            if candidates:
+                candidates.sort(reverse=True)
+                avatar_path = candidates[0][1]
+
+        await progress("avatar", 35, f"Avatar: {os.path.basename(avatar_path) if avatar_path else 'none'}")
 
         # ── 3. Run video engine ───────────────────────────────────────────
         from video_engine import render_video
 
+        # Pass custom gradient colors if user edited swatches
+        raw_gc = data.get("gradient_colors")
+        gradient_colors = None
+        if raw_gc and len(raw_gc) == 3:
+            gradient_colors = [tuple(c) for c in raw_gc]
+
         output_video = os.path.join(session_dir, "tiktok_mashup.mp4")
         await render_video(
-            audio_path  = processed_audio,
-            avatar_path = avatar_path,
-            output_path = output_video,
-            text        = data.get("text",{}).get("text","SI TE SABES EL TIKTOK BAILAI"),
-            quality     = data.get("export",{}).get("quality","high"),
-            progress_cb = progress,
+            audio_path       = processed_audio,
+            avatar_path      = avatar_path,
+            output_path      = output_video,
+            text             = data.get("text",{}).get("text","SI TE SABES EL TIKTOK BAILAI"),
+            text_color       = data.get("text",{}).get("color","#FFFFFF"),
+            font_name        = data.get("text",{}).get("font","Anton"),
+            font_size        = int(data.get("text",{}).get("font_size", 0)),
+            text_x           = int(data.get("layout",{}).get("text_x", 0)),
+            text_y           = int(data.get("layout",{}).get("text_y", 0)) + int(data.get("layout",{}).get("text_y_offset", 0)),
+            logo_x           = int(data.get("layout",{}).get("logo_x", 0)),
+            logo_y           = int(data.get("layout",{}).get("logo_y", 0)),
+            logo_size        = int(data.get("layout",{}).get("logo_size", 0)),
+            avatar_x         = int(data.get("layout",{}).get("avatar_x", -1)),
+            avatar_y_offset  = int(data.get("layout",{}).get("avatar_y", 0)),
+            avatar_scale     = float(data.get("layout",{}).get("avatar_scale", 1.0)),
+            text_align       = data.get("text",{}).get("align","left"),
+            quality          = data.get("export",{}).get("quality","high"),
+            progress_cb      = progress,
+            gradient_colors  = gradient_colors,
         )
 
         thumb = output_video.replace(".mp4","_thumbnail.jpg")
@@ -207,3 +276,48 @@ async def ws_generate(websocket: WebSocket):
                 "message":f"Error: {str(e)}","status":"error"})
         except Exception:
             pass
+
+
+# ── Color preview endpoint ──────────────────────────────────────────────────
+
+@app.get("/api/colors/preview")
+async def preview_colors():
+    """
+    Return the 3 gradient colors extracted from the current avatar upload.
+    Called by frontend after avatar upload to show color swatches.
+    """
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from video_engine import get_gradient_colors
+
+    # Find the most recently uploaded avatar
+    candidates = []
+    for ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        p = os.path.join(TEMP_DIR, f"avatar_upload{ext}")
+        if os.path.exists(p):
+            candidates.append((os.path.getmtime(p), p))
+
+    if not candidates:
+        return {
+            "success": False,
+            "colors": [
+                {"r": 220, "g": 50,  "b": 150, "hex": "#dc3296"},
+                {"r": 100, "g": 0,   "b": 180, "hex": "#6400b4"},
+                {"r": 50,  "g": 0,   "b": 100, "hex": "#320064"},
+            ]
+        }
+
+    candidates.sort(reverse=True)
+    avatar_path = candidates[0][1]
+
+    try:
+        c1, c2, c3 = get_gradient_colors(avatar_path)
+        def to_dict(c):
+            return {"r": c[0], "g": c[1], "b": c[2],
+                    "hex": f"#{c[0]:02x}{c[1]:02x}{c[2]:02x}"}
+        return {
+            "success": True,
+            "colors": [to_dict(c1), to_dict(c2), to_dict(c3)]
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}

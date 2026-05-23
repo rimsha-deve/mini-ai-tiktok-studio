@@ -150,11 +150,16 @@ async def websocket_generate(websocket: WebSocket):
         # Find uploaded avatar
         uploaded_avatar = data.get("avatar_path")
         if not uploaded_avatar:
+            # Find the most recently modified avatar upload file
+            candidates = []
             for ext in [".png", ".jpg", ".jpeg", ".webp"]:
                 check = os.path.join(TEMP_DIR, f"avatar_upload{ext}")
                 if os.path.exists(check):
-                    uploaded_avatar = check
-                    break
+                    candidates.append((os.path.getmtime(check), check))
+            if candidates:
+                # Pick the newest file
+                candidates.sort(reverse=True)
+                uploaded_avatar = candidates[0][1]
 
         if uploaded_avatar and os.path.exists(uploaded_avatar):
             avatar_path = avatar_service.process_avatar(
