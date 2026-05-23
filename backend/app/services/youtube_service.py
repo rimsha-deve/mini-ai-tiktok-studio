@@ -23,12 +23,12 @@ class YouTubeService:
     ) -> Dict[str, str]:
         """
         Extract audio from YouTube URL.
-        
+
         Args:
             url: YouTube video URL
             speed: Audio speed multiplier (default 1.18x)
             progress_callback: Optional async callback for progress updates
-            
+
         Returns:
             Dict with paths to extracted audio, thumbnail, and metadata
         """
@@ -43,7 +43,7 @@ class YouTubeService:
         if progress_callback:
             await progress_callback("youtube", 10, "Starting YouTube download...")
 
-        # Download audio using yt-dlp
+        # Download audio using yt-dlp — FIXED: use android client to bypass bot detection
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": os.path.join(output_dir, "raw_audio.%(ext)s"),
@@ -58,11 +58,15 @@ class YouTubeService:
             "writeinfojson": True,
             "quiet": True,
             "no_warnings": True,
-            "extractor_args": {"youtube": {"player_client": ["mweb", "ios"], "po_token": []}},
-            "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
-            # Required for modern yt-dlp: JS runtime + remote challenge solver
-            "js_runtimes": {"node": {}},
-            "remote_components": {"ejs:github": {}},
+            # Use android client — most reliable for server-side downloads
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "web"],
+                }
+            },
+            "http_headers": {
+                "User-Agent": "com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip",
+            },
         }
 
         try:
@@ -123,7 +127,6 @@ class YouTubeService:
             error_detail = str(e) or repr(e)
             tb = traceback.format_exc()
             print(f"[ERROR] YouTube extraction failed:\n{tb}")
-            # Include more context for debugging
             if "no supported" in error_detail.lower() or "js" in error_detail.lower():
                 error_detail += " (Ensure Node.js is installed and in PATH)"
             raise RuntimeError(f"YouTube extraction failed: {error_detail}")
@@ -139,21 +142,21 @@ class YouTubeService:
         """Find first file matching given extensions in directory."""
         if not os.path.exists(directory):
             return None
-        
+
         files = os.listdir(directory)
-        
+
         # First pass: look for files with "raw_audio" in name
         for file in files:
             for ext in extensions:
                 if file.endswith(f".{ext}") and "raw_audio" in file:
                     return os.path.join(directory, file)
-        
+
         # Second pass: any file with matching extension (skip json/info files)
         for file in files:
             for ext in extensions:
                 if file.endswith(f".{ext}") and not file.endswith(".info.json"):
                     return os.path.join(directory, file)
-        
+
         return None
 
     async def _apply_speed(self, input_path: str, output_path: str, speed: float):
@@ -161,20 +164,20 @@ class YouTubeService:
         atempo = speed
         # FFmpeg atempo filter only supports 0.5 to 100.0
         filter_chain = f"atempo={atempo}"
-        
+
         cmd = [
             "ffmpeg", "-y", "-i", input_path,
             "-filter:a", filter_chain,
             "-vn", output_path
         ]
-        
+
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, self._run_cmd, cmd)
-        
+
         if result.returncode != 0:
             error_msg = result.stderr[:200] if result.stderr else "Unknown FFmpeg error"
             raise RuntimeError(f"FFmpeg speed adjustment failed: {error_msg}")
-        
+
         if not os.path.exists(output_path):
             raise FileNotFoundError(f"FFmpeg did not produce output file: {output_path}")
 
