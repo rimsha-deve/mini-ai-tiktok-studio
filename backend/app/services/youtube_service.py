@@ -49,7 +49,7 @@ class YouTubeService:
         cookies_b64 = __import__("os").environ.get("YOUTUBE_COOKIES_B64", "")
         if cookies_b64:
             import base64, tempfile
-            cookies_data = base64.b64decode(cookies_b64).decode("utf-8")
+            cookies_data = base64.b64decode(cookies_b64 + "==").decode("latin-1")
             tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
             tmp.write(cookies_data)
             tmp.close()
