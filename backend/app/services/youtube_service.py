@@ -70,6 +70,7 @@ class YouTubeService:
             "quiet": True,
             "no_warnings": True,
             "cookiefile": cookies_file,
+            "ffmpeg_location": "/usr/bin",
             # Use android client — most reliable for server-side downloads
             "extractor_args": {
                 "youtube": {
