@@ -58,6 +58,8 @@ class YouTubeService:
             "writeinfojson": True,
             "quiet": True,
             "no_warnings": True,
+            "extractor_args": {"youtube": {"player_client": ["web_creator", "ios"]}},
+            "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
             # Required for modern yt-dlp: JS runtime + remote challenge solver
             "js_runtimes": {"node": {}},
             "remote_components": {"ejs:github": {}},
