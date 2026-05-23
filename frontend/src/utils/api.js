@@ -4,8 +4,8 @@
 
 import axios from 'axios';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
-const WS_BASE = 'ws://127.0.0.1:8000/ws';
+const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : 'http://127.0.0.1:8000/api';
+const WS_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('https://','wss://').replace('http://','ws://') + '/ws' : 'ws://127.0.0.1:8000/ws';
 
 const api = axios.create({
   baseURL: API_BASE,
