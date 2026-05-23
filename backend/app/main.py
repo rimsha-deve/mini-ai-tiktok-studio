@@ -346,3 +346,14 @@ async def write_cookies():
             print("[STARTUP] YouTube cookies written successfully!")
         except Exception as e:
             print(f"[STARTUP] Cookie write failed: {e}")
+
+@app.get("/api/debug/cookies")
+async def debug_cookies():
+    import os
+    path = '/tmp/yt_cookies.txt'
+    exists = os.path.exists(path)
+    if exists:
+        with open(path) as f:
+            lines = f.readlines()
+        return {"exists": True, "lines": len(lines), "first_3": lines[:3]}
+    return {"exists": False}
