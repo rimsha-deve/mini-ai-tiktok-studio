@@ -1,3 +1,0 @@
-import subprocess
-result = subprocess.run(['which', 'ffmpeg'], capture_output=True, text=True)
-print("FFmpeg path:", result.stdout)
